@@ -1,0 +1,294 @@
+import json
+import os
+from collections import Counter
+
+class Movie:
+    def __init__(self, title, director, year, genres):
+        self.title = title
+        self.director = director
+        self.year = year
+        self.genres = genres
+
+    def __repr__(self):
+        return f"<Movie title='{self.title}', director='{self.director}', year={self.year}, genres={self.genres}>"
+
+    #Converte un oggetto Movie in un dizionario.
+    def to_dict(self):
+        return {
+            "title": self.title,
+            "director": self.director,
+            "year": self.year,
+            "genres": self.genres,
+        }
+
+#classe per la gestione dell'eccezione per film non trovato.
+class MovieNotFoundError(Exception):
+    def __init__(self, message="Movie was not found"):
+        super().__init__(message)
+
+class MovieLibrary:
+    def __init__(self, json_file):
+        self.json_file = json_file
+        self.movies = self._load_movies()
+
+    #Carica i film dal file JSON.
+    def _load_movies(self):
+        if not os.path.exists(self.json_file):
+            raise FileNotFoundError(f"File not found: {self.json_file}")
+        try:
+            with open(self.json_file, 'r') as file:
+                data = json.load(file)
+                return [Movie(**movie) for movie in data]
+        # Restituisce una lista vuota se il file non esiste
+        except FileNotFoundError:
+            return []  
+        except json.JSONDecodeError:
+            raise ValueError("Il file JSON non è valido.")
+        
+    #Salva la lista di film nel file JSON.
+    def _save_to_file(self):
+        with open(self.json_file, 'w') as file:
+            json.dump([movie.to_dict() for movie in self.movies], file, indent=4)
+
+    #Lista di tutti i film.
+    def get_movies(self):
+        return self.movies
+    
+    #Lista di tutti i titoli dei film.
+    def get_movie_titles(self):
+        return [movie.title for movie in self.movies]
+
+    #Aggiunge un nuovo film alla collezione.
+    def add_movie(self, title, director, year, genres):
+        new_movie = Movie(title, director, year, genres)
+        self.movies.append(new_movie)
+        self._save_to_file()
+
+    #Rimuove un film dalla collezione in base al titolo.
+    def remove_movie(self, title):
+        movie = self.search_by_title(title)
+        if not movie:
+            raise MovieNotFoundError()
+        self.movies.remove(movie)
+        self._save_to_file()
+        return movie
+
+    #Cerca un film per titolo.
+    def search_by_title(self, title):
+        for movie in self.movies:
+            if movie.title.lower() == title.lower():
+                return movie
+        return None
+    
+    #Cerca i film per parola ne titolo.
+    def get_movies_by_title_substring(self, substring):
+        return [movie for movie in self.movies if substring in movie.title]
+
+    #Cerca i film per genere.
+    def search_by_director(self, director):
+        return [movie for movie in self.movies if movie.director.lower() == director.lower()]
+    
+    #Cerca film per anno.
+    def get_movies_by_year(self, year):
+        return [movie for movie in self.movies if movie.year == year]
+       
+    #Cerca film per genere.
+    def get_movies_by_genre(self, genre):
+        return [movie for movie in self.movies if genre.lower() in [g.lower() for g in movie.genres]]
+
+    #Cerca i titoli dei film usciti tra due anni.
+    def get_titles_between_years(self, start_year, end_year):
+        return [movie.title for movie in self.movies if start_year <= movie.year <= end_year]
+    
+    #Conta il numero dei Film presenti.
+    def count_movies(self):
+        return len(self.movies)
+    
+    #Conta film del director inserito.
+    def count_movies_by_director(self, director):
+        return sum(1 for movie in self.movies if movie.director.lower() == director.lower())
+    
+    #Restituisce il titolo del film più lungo.
+    def get_longest_title(self):
+        if not self.movies:
+            return None
+        return max(self.movies, key=lambda movie: len(movie.title)).title
+
+    #Restituisce il titolo del film più vecchio.
+    def get_oldest_movie_title(self):
+        if not self.movies:
+            return None
+        oldest_movie = min(self.movies, key=lambda movie: movie.year)
+        return oldest_movie.title
+    
+    #Restituisce media degli anni di uscita dei film.
+    def get_average_release_year(self):
+        if not self.movies:
+            return 0
+        return sum(movie.year for movie in self.movies) / len(self.movies)
+    
+    #Restituisce l'anno che si ripete più spesso fra i film della collezione.
+    def get_most_common_year(self):
+        if not self.movies:
+            return None
+        year_counts = Counter(movie.year for movie in self.movies)
+        most_common_year, _ = year_counts.most_common(1)[0]
+        return most_common_year
+
+    #Aggiorna un film
+    def update_movie(self, title, director=None, year=None, genres=None):
+        movie = self.search_by_title(title)
+        if not movie:
+            raise MovieNotFoundError()
+        if director:
+            movie.director = director
+        if year:
+            movie.year = year
+        if genres:
+            movie.genres = genres
+        self._save_to_file()
+        return movie
+
+#Riferimento per menu utente.
+library = MovieLibrary('movies.json')
+
+# Menu per l'utente.
+def menu():
+    print("\n--- Movie Library ---")
+    print("1. Elenca tutti i titoli dei film")
+    print("2. Aggiungi un film")
+    print("3. Rimuovi Film")
+    print("4. Cerca un film per titolo")
+    print("5. Cerca film per parola nel titolo")
+    print("6. Cerca film per anno")
+    print("7. Cerca film per regista")
+    print("8. Cerca film per genere")
+    print("9. Conta il numero totale di film")
+    print("10. Conta film di un regista")
+    print("11. Film più vecchio")
+    print("12. Media degli anni di pubblicazione")
+    print("13. Titolo più lungo")
+    print("14. Film pubblicati tra due anni")
+    print("15. Anno più frequente")
+    print("16. Aggiorna un film")
+    print("17. Esci")
+    return input("Seleziona un'opzione: ") 
+
+# Ciclo Comandi Menu per l'utente.
+while True:
+    choice = menu()
+    if choice == '1':
+        print("Elenco dei titoli dei film:")
+        for title in library.get_movie_titles():
+            print(title)
+    elif choice == '2':
+        title = input("Titolo: ")
+        director = input("Regista: ")
+        year = int(input("Anno: "))
+        genres = input("Generi (separati da virgola): ").split(",")
+        library.add_movie(title, director, year, genres)
+        print("Film aggiunto con successo!")
+    elif choice == '3':
+        title = input("Titolo del film da rimuovere: ")
+        try:
+            removed_movie = library.remove_movie(title)
+            print("Film rimosso con successo:", removed_movie)
+        except MovieNotFoundError:
+            print("Film non trovato.")
+    elif choice == '4':
+        title = input("Titolo del film da cercare: ")
+        movie = library.search_by_title(title)
+        if movie:
+            print("Film trovato:", movie)
+        else:
+            print("Film non trovato.")
+    elif choice == '5':
+        substring = input("Inserisci la sottostringa del titolo: ")
+        movies = library.get_movies_by_title_substring(substring)
+        if movies:
+            print("Film trovati:")
+            for movie in movies:
+                print(movie)
+        else:
+            print("Nessun film trovato con la sottostringa inserita.")
+    elif choice == '6':
+        year = int(input("Anno del film da cercare: "))
+        movies = library.get_movies_by_year(year)
+        if movies:
+            print("Film trovati:")
+            for movie in movies:
+                print(movie)
+        else:
+            print("Nessun film trovato per l'anno indicato.")
+    elif choice == '7':
+        director = input("Nome del regista: ")
+        movies = library.search_by_director(director)
+        if movies:
+            print("Film trovati:")
+            for movie in movies:
+                print(movie)
+        else:
+            print("Nessun film trovato per il regista indicato.")
+    elif choice == '8':
+        genre = input("Genere del film: ")
+        movies = library.get_movies_by_genre(genre)
+        if movies:
+            print("Film trovati:")
+            for movie in movies:
+                print(movie)
+        else:
+            print("Nessun film trovato per il genere indicato.")
+    elif choice == '9':
+        print("Numero totale di film nella collezione:", library.count_movies())
+    elif choice == '10':
+        director = input("Nome del regista: ")
+        count = library.count_movies_by_director(director)
+        print(f"Numero di film diretti da {director}: {count}")
+    elif choice == '11':
+        oldest_title = library.get_oldest_movie_title()
+        if oldest_title:
+            print("Il film più vecchio è:", oldest_title)
+        else:
+            print("Nessun film presente nella collezione.")
+    elif choice == '12':
+        average_year = library.get_average_release_year()
+        print(f"La media degli anni di pubblicazione è: {average_year:.2f}")
+    elif choice == '13':
+        longest_title = library.get_longest_title()
+        if longest_title:
+            print("Il titolo più lungo è:", longest_title)
+        else:
+            print("Nessun film presente nella collezione.")
+    elif choice == '14':
+        start_year = int(input("Anno di inizio: "))
+        end_year = int(input("Anno di fine: "))
+        titles = library.get_titles_between_years(start_year, end_year)
+        if titles:
+            print("Film trovati:")
+            for title in titles:
+                print(title)
+        else:
+            print("Nessun film trovato nell'intervallo indicato.")
+    elif choice == '15':
+        most_common_year = library.get_most_common_year()
+        if most_common_year:
+            print("L'anno più comune è:", most_common_year)
+        else:
+            print("Nessun film presente nella collezione.")
+    elif choice == '16':
+        title = input("Titolo del film da aggiornare: ")
+        director = input("Nuovo regista (premi invio per non modificare): ") or None
+        year = input("Nuovo anno (premi invio per non modificare): ")
+        year = int(year) if year else None
+        genres = input("Nuovi generi separati da virgola (premi invio per non modificare): ")
+        genres = genres.split(",") if genres else None
+        try:
+            updated_movie = library.update_movie(title, director, year, genres)
+            print("Film aggiornato con successo:", updated_movie)
+        except MovieNotFoundError:
+            print("Film non trovato.")
+    elif choice == '17':
+        print("Uscita...")
+        break
+    else:
+        print("Opzione non valida. Riprova.")
